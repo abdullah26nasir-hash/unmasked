@@ -1,0 +1,73 @@
+import puppeteer from 'puppeteer-core';
+const B = 'http://127.0.0.1:8787';
+const br = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox','--disable-dev-shm-usage','--disable-gpu'] });
+const mk = async (w, h, mobile) => {
+  const ctx = await br.createBrowserContext();
+  const p = await ctx.newPage();
+  await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: mobile, hasTouch: mobile });
+  p.on('pageerror', e => console.log('PAGEERROR', e.message));
+  p.on('console', m => m.type() === 'error' && console.log('CONSOLE', m.text()));
+  return p;
+};
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+const shot = async (p, n) => { await wait(900); const ov = await p.evaluate(()=>document.documentElement.scrollWidth - window.innerWidth); if (ov>0) console.log('OVERFLOW', n, ov); await p.screenshot({ path: `shots/${n}.png` }); console.log('shot', n); };
+const clickText = async (p, t) => {
+  const ok = await p.evaluate((t) => { const b = [...document.querySelectorAll('button')].find(b => (b.textContent.trim()===t || (t.length>4 && b.textContent.trim().startsWith(t))) && !b.disabled); if (b) { b.click(); return true; } return false; }, t);
+  if (!ok) console.log('NO BUTTON', t);
+};
+const A = await mk(1280, 860, false);
+const M = await mk(390, 844, true);
+await A.goto(B, { waitUntil: 'domcontentloaded' });
+await wait(2500);
+await shot(A, '01-home-desktop');
+await M.goto(B, { waitUntil: 'domcontentloaded' });
+await wait(1500);
+await shot(M, '02-home-mobile');
+await A.type('#name', 'Abdullah');
+await clickText(A, 'Create a game');
+await wait(1500);
+const code = await A.evaluate(() => new URLSearchParams(location.search).get('g'));
+console.log('code', code);
+await clickText(A,'Show QR'); await wait(400); await shot(A, '03-lobby-desktop');
+await M.goto(`${B}/?join=${code}`, { waitUntil: 'domcontentloaded' });
+await wait(1500);
+await M.type('#name', 'Sam');
+await clickText(M, 'Join');
+await wait(1500);
+await shot(M, '04-pick-mobile');
+// picks
+await A.evaluate(()=>document.querySelector('button[aria-label="Hide as KSI"]').click()); await wait(200); await clickText(A, 'Hide as KSI');
+await M.evaluate(()=>document.querySelector('button[aria-label="Hide as Chunkz"]').click()); await wait(300); await shot(M, '05-pick-selected-mobile'); await clickText(M, 'Hide as Chunkz');
+await wait(1500);
+const aTurn = await A.evaluate(() => !!document.querySelector('[role=tablist]'));
+const asker = aTurn ? A : M, other = aTurn ? M : A;
+console.log('first turn', aTurn ? 'A' : 'M');
+await shot(A, '06-play-desktop'); await shot(M, '07-play-mobile');
+await M.evaluate(()=>document.querySelector('button[aria-label="Choose how to talk"]')?.click()); await wait(700); await shot(M,'06b-talk-mobile');
+await clickText(M,'WhatsApp call'); await wait(700); await shot(M,'06c-talk-whatsapp'); await M.keyboard.press('Escape'); await M.evaluate(()=>document.querySelector('[role=dialog]')?.parentElement?.click()); await wait(500);
+await clickText(asker, 'British?');
+await wait(1000); await shot(other,'08a-answer-chip'); await clickText(other,'Yes'); await wait(1000);
+await shot(asker, '08-answer-' + (aTurn ? 'desktop' : 'mobile'));
+for (const n of ['MrBeast','MKBHD','Logan Paul','IShowSpeed','Kai Cenat','PewDiePie','Dream','Pokimane','Valkyrae','Mark Rober','MoistCr1TiKaL','Dude Perfect','Casey Neistat']) { await asker.evaluate((n)=>document.querySelector(`button[aria-label="Flip down ${n}"]`)?.click(), n); await wait(60); }
+await wait(2000);
+await shot(asker, '09-flipped-' + (aTurn ? 'desktop' : 'mobile'));
+await shot(other, '10-other-view');
+await clickText(asker, 'End turn');
+await wait(1000);
+// other asks free text
+await clickText(other, 'Ask anything'); await wait(300);
+await other.type('#q', 'Would they survive a zombie film?');
+await clickText(other, 'Ask'); await wait(1200);
+await shot(asker, '11-answer-free-' + (aTurn ? 'desktop' : 'mobile'));
+await clickText(asker, 'No'); await wait(1000);
+await shot(other, '12-free-answered');
+await clickText(other, 'End turn'); await wait(800);
+// asker accuses correctly
+await clickText(asker, 'Accuse someone'); await wait(400);
+await shot(asker, '13-accuse-mode');
+const target = aTurn ? 'Chunkz' : 'KSI';
+await asker.evaluate((t)=>document.querySelector(`button[aria-label="Accuse ${t}"]`).click(), target); await wait(600);
+await shot(asker, '14-confirm');
+await clickText(asker, `Accuse ${target}`); await wait(1400); await shot(asker,'14b-reveal'); await wait(2500);
+await shot(asker, '15-win'); await shot(other, '16-lose');
+await br.close();
