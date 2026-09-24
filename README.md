@@ -14,4 +14,6 @@ npx wrangler dev --port 8787   # room server (local Durable Objects)
 npm run dev                    # app on :5173, proxies /parties to :8787
 node e2e.mjs                   # two-browser end-to-end run, screenshots to shots/
 ```
-Not deployed anywhere yet.
+
+
+Built by Abdullah Mansuri as part of the 7 day challenge.
