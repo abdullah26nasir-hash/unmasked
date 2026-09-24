@@ -1,3 +1,4 @@
+import { Logo } from './Logo';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -6,6 +7,7 @@ import { CAST } from '../game/characters';
 import { packOf, cardOf, PACKS } from '../game/packs';
 import { TalkBar, TalkChooser } from './Talk';
 import { QR } from './QR';
+import { copyText, shareOrCopy } from '../lib/share';
 import { sessionName } from '../game/session';
 import type { Answer, ClientMsg, RoomView } from '../game/room';
 import { hostLine } from '../game/host';
@@ -38,7 +40,7 @@ function TopBar({ view, you, onLeave, connected, send }: { view: RoomView; you: 
   const opp = view.players.find((p) => p.id !== you);
   return (
     <header className="flex min-w-0 items-center gap-2 px-4 sm:gap-3 pb-2 pt-3 sm:px-6 sm:pt-4">
-      <button onClick={onLeave} className="press shrink-0 font-display text-xl font-extrabold tracking-[-0.04em] sm:text-2xl" aria-label="Leave game and go home">Unmasked</button>
+      <button onClick={onLeave} className="press shrink-0 text-[19px] sm:text-2xl" aria-label="Leave game and go home"><Logo size="sm" /></button>
       <span className="rounded-full bg-white px-3 py-1 font-mono text-sm font-medium tracking-[0.2em]" style={{ boxShadow: 'var(--shadow-sm)' }} aria-label={`Game code ${view.code.split('').join(' ')}`}>
         {view.code}
       </span>
@@ -59,14 +61,17 @@ function TopBar({ view, you, onLeave, connected, send }: { view: RoomView; you: 
 }
 
 function Lobby({ code, line, view, send }: { code: string; line: string; view: RoomView; send: (m: ClientMsg) => void }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'' | 'copied' | 'failed'>('');
   const [showQr, setShowQr] = useState(false);
+  const [waitedLong, setWaitedLong] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setWaitedLong(true), 90_000); return () => clearTimeout(id); }, []);
   const link = `${window.location.origin}/?join=${code}`;
   const title = sessionName(code);
-  const copy = async () => { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); };
+  const flash = (r: 'copied' | 'failed') => { setCopied(r); setTimeout(() => setCopied(''), 2200); };
+  const copy = async () => flash((await copyText(link)) ? 'copied' : 'failed');
   const share = async () => {
-    if (navigator.share) { try { await navigator.share({ title: `Unmasked: ${title}`, text: `Join me in ${title} on Unmasked. Code ${code}`, url: link }); return; } catch { /* fall through */ } }
-    await copy();
+    const r = await shareOrCopy({ title: `Unmasked: ${title}`, text: `Join me in ${title} on Unmasked. Code ${code}`, url: link });
+    if (r === 'copied' || r === 'failed') flash(r);
   };
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 pb-12">
@@ -76,12 +81,15 @@ function Lobby({ code, line, view, send }: { code: string; line: string; view: R
         <p className="mt-4 font-mono text-[56px] font-medium leading-none tracking-[0.18em]" aria-label={`Game code ${code.split('').join(' ')}`}>{code}</p>
         <p className="mt-2 text-sm font-semibold text-ink-2">Say the code, send the link, or let them scan.</p>
         <button onClick={share} className="press btn-butter mt-5 h-13 w-full rounded-2xl font-extrabold">
-          {copied ? 'Link copied' : 'Send invite link'}
+          {copied === 'copied' ? 'Link copied' : 'Send invite link'}
         </button>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <button onClick={copy} className="press h-12 rounded-2xl bg-ground font-bold">{copied ? 'Copied' : 'Copy link'}</button>
+          <button onClick={copy} className="press h-12 rounded-2xl bg-ground font-bold">{copied === 'copied' ? 'Copied' : 'Copy link'}</button>
           <button onClick={() => setShowQr((v) => !v)} aria-expanded={showQr} className="press h-12 rounded-2xl bg-ground font-bold">{showQr ? 'Hide QR' : 'Show QR'}</button>
         </div>
+        {copied === 'failed' && (
+          <p className="mt-3 break-all rounded-2xl bg-ground p-3 text-left font-mono text-xs" role="status">Couldn't copy automatically. Press and hold to copy: {link}</p>
+        )}
         {showQr && (
           <div className="mt-4 flex flex-col items-center gap-2">
             <QR value={link} label={`QR code to join ${title}`} size={184} />
@@ -92,6 +100,7 @@ function Lobby({ code, line, view, send }: { code: string; line: string; view: R
           <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tray opacity-60" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-tray" /></span>
           Waiting for them to join
         </p>
+        {waitedLong && <p className="mt-1 text-xs font-semibold text-ink-2">Still nobody? Send the link again. It stays open for 6 hours.</p>}
       </div>
       <div className="mt-4"><PackPicker view={view} send={send} /></div>
       <div className="mt-4"><Collector line={line} mood="smug" compact /></div>
@@ -314,7 +323,6 @@ function Dock(props: {
           )}
           <button onClick={() => send({ t: 'end-turn' })} className="press btn-butter h-13 flex-1 rounded-2xl font-extrabold">End turn</button>
         </div>
-        <AccuseToggle accusing={accusing} setAccusing={setAccusing} />
       </div>
     );
   }
@@ -351,6 +359,7 @@ function Dock(props: {
         </form>
       )}
       <AccuseToggle accusing={accusing} setAccusing={setAccusing} />
+      {accusing && <p className="mt-1.5 text-center text-xs font-semibold text-ink-2">Guessing uses your turn. Right, you win. Wrong, you lose.</p>}
     </div>
   );
 }

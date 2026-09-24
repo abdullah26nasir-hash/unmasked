@@ -18,6 +18,9 @@ export function hostLine(v: RoomView, you: string): string {
       'Two players. One of you is about to get exposed. Share the code.',
     ], seed);
   }
+  if ((v.phase === 'picking' || v.phase === 'playing') && opp && !opp.connected) {
+    return pick([`${oppName} dropped out. I'm holding their seat. Same link gets them back in.`, `${oppName}'s connection blinked. Seat's saved. Give them a minute.`], seed);
+  }
   if (v.phase === 'picking') {
     if (me?.hasPicked && !opp?.hasPicked) return pick([`Locked in. ${oppName} is still choosing a disguise.`, `Good. Now we wait for ${oppName} to commit.`], seed);
     if (!me?.hasPicked && opp?.hasPicked) return pick([`${oppName} has picked. Your move. No pressure. Some pressure.`, `${oppName} is hidden. Choose who you're protecting.`], seed);

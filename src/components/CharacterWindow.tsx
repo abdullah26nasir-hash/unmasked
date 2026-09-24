@@ -53,7 +53,7 @@ export function CharacterWindow({ c, down, mode, selected, dim, delay = 0, onPre
           style={{ backfaceVisibility: 'hidden', boxShadow: '0 4px 0 rgb(0 0 0 / .18)' }}
         >
           <CardFace card={c} className="h-full w-full" />
-          <div className="absolute inset-x-1.5 bottom-1.5 rounded-lg bg-butter px-1 py-[3px] text-center font-display text-[12px] font-extrabold leading-none tracking-tight text-ink sm:text-[13px]">
+          <div className={`absolute inset-x-1.5 bottom-1.5 rounded-lg bg-butter px-1 py-[3px] text-center font-display font-extrabold leading-none tracking-tight text-ink ${c.name.length > 8 ? 'text-[10px] tracking-[-0.03em] sm:text-[12px]' : 'text-[12px] sm:text-[13px]'}`}>
             {c.name}
           </div>
           {accuse && (
