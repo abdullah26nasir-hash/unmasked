@@ -1,7 +1,7 @@
 # Unmasked - Product Requirements Document
 
 **Owner:** Abdullah Mansuri (7 day challenge)
-**Status:** Live preview (build 5). Function-first phase; branding pass is LAST.
+**Status:** Live preview (build 6). Function-first phase; branding pass is LAST.
 **Preview:** https://unmasked-m4v8p1.abdullah-26nasir.workers.dev (unguessable, noindexed, unlisted)
 **Repo:** github.com/abdullah26nasir-hash/unmasked, branch `v2-creators` (main untouched)
 **Last updated:** 24 Sep 2026
@@ -54,6 +54,12 @@ Product principles:
 - [x] Turn signals: "Your turn" bar + tab title "Your turn · Unmasked"; one-time FaceTime PiP swipe tip
 - [x] Server: ask-aloud move, valid only on your turn, logged once, no accuse after asking (classic rule)
 - [x] 52/52 buttons, 13/13 security, full e2e verified live
+
+### Phase 2c - Shipped: install, nudges, accessibility (build 6)
+- [x] Add to Home Screen (manifest + icons, standalone, portrait lock)
+- [x] Turn nudges: Android vibration, optional chime (off by default); desktop turn bar
+- [x] Accessibility: axe WCAG 2.1 AA 32/32, screen-reader live announcements, focus management, contrast, reduced motion
+- [x] Apple HIG: 44pt targets, safe-area insets (standing rule for all apps)
 
 ### Phase 3 - Pack pipeline
 - [ ] Additional packs from episode research (proposal-first process)

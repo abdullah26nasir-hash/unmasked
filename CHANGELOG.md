@@ -1,5 +1,14 @@
 # Changelog
 
+## Build 6 - 2026-09-25
+- Add to Home Screen: web app manifest + icons (maskable Android + Apple touch icon), opens full-screen standalone, portrait lock
+- Android vibration turn nudge; optional two-note chime OFF by default with device-saved toggle
+- Desktop turn bar matching mobile
+- Accessibility: axe WCAG 2.1 AA 32/32 clean, screen-reader live announcements, focus management on all dialogs, contrast fixes, reduced-motion support (npm run test:a11y)
+- Apple HIG: 44pt touch targets everywhere (21 fixes), safe-area insets
+- Verified live: buttons 55/55, security 13/13, full e2e clean (join code PWHH)
+- Deployed: https://unmasked-m4v8p1.abdullah-26nasir.workers.dev (unguessable preview, noindex)
+
 ## Build 5 - 2026-09-25
 - Call vs texting play split: FaceTime/WhatsApp/Meet modes get "Asked out loud - flip cards" as the primary turn action (one tap to flipping, friend sees the asking state, round log records it); chips and typed questions stay as the secondary in-app option
 - Texting mode unchanged: full in-app Q&A
