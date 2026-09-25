@@ -67,7 +67,7 @@ await A.evaluate(() => document.querySelector('button[aria-label="Hide as Messi"
 await A.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.startsWith('Hide as'))?.click()); await wait(1500);
 ok('Hide as locks in and starts the round', await A.evaluate(() => !!document.querySelector('[aria-label^="Flip down"]')));
 
-const myTurnBar = (p) => p.evaluate(() => [...document.querySelectorAll('[role=status]')].some((e) => e.textContent.trim() === 'Your turn'));
+const myTurnBar = (p) => p.evaluate(() => !!document.querySelector('[data-turn=mine]'));
 const aTurn = await myTurnBar(A);
 let asker = aTurn ? A : M, other = aTurn ? M : A;
 
@@ -83,6 +83,11 @@ const meet = await M.$('#meet');
 if (meet) { await meet.type('https://meet.google.com/abc-defg-hij'); await M.keyboard.press('Enter'); await wait(700); }
 await A.evaluate(() => document.querySelector('button[aria-label^="Talking by"]')?.click()); await wait(600);
 ok('Meet link reaches the friend', await A.evaluate(() => [...document.querySelectorAll('a')].some((a) => a.href === 'https://meet.google.com/abc-defg-hij')));
+ok('Sound starts off', await A.evaluate(() => document.querySelector('[role=switch]')?.getAttribute('aria-checked') === 'false'));
+await A.evaluate(() => document.querySelector('[role=switch]')?.click()); await wait(300);
+ok('Sound switch turns on and is remembered', await A.evaluate(() => document.querySelector('[role=switch]')?.getAttribute('aria-checked') === 'true' && localStorage.getItem('unmasked:sound') === '1'));
+await A.evaluate(() => document.querySelector('[role=switch]')?.click()); await wait(300);
+ok('Sound switch turns back off', await A.evaluate(() => localStorage.getItem('unmasked:sound') === '0'));
 for (const p of [A, M]) { await btn(p, 'Back to the game'); await wait(400); }
 ok('Back to the game closes the sheet', await M.evaluate(() => !document.querySelector('[role=dialog][aria-label="Call and chat"]')));
 

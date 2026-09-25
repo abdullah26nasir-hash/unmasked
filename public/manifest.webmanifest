@@ -1,0 +1,16 @@
+{
+  "name": "Unmasked",
+  "short_name": "Unmasked",
+  "description": "Guess who your friend is hiding. Two phones, one code, no sign-up.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EEF0FF",
+  "theme_color": "#EEF0FF",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { ClientMsg, RoomView, TalkMode } from '../game/room';
+import { nudge, setSound, soundOn } from '../lib/nudge';
+import { useModal } from '../lib/useModal';
 
 const OPTIONS: { id: TalkMode; label: string; sub: string; icon: string }[] = [
   { id: 'facetime', label: 'FaceTime', sub: 'Apple devices', icon: 'M3 7h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3zM16 10l5-3v10l-5-3' },
@@ -151,22 +153,14 @@ export function TalkBar({ view, you, send }: { view: RoomView; you: string; send
   useEffect(() => { if (open) seen.current = view.chat.length; }, [open, view.chat.length]);
   return (
     <>
-      <button onClick={() => setOpen(true)} className="press relative flex h-9 items-center gap-1.5 rounded-full bg-white px-3 text-sm font-bold" style={{ boxShadow: 'var(--shadow-sm)' }}
+      <button onClick={() => setOpen(true)} className="press relative flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full bg-white px-3 text-sm font-bold" style={{ boxShadow: 'var(--shadow-sm)' }}
         aria-label={mode ? `Talking by ${iconOf(mode).label}. Open call and chat options` : 'Choose how to talk'}>
         <Icon d={mode ? iconOf(mode).icon : OPTIONS[1].icon} className="h-4 w-4" />
         <span className="hidden sm:inline">{mode ? iconOf(mode).label : 'Talk'}</span>
         {unread > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-signal px-1 text-[11px] font-extrabold text-white">{unread}</span>}
       </button>
       <AnimatePresence>
-        {open && (
-          <motion.div className="fixed inset-0 z-50 grid place-items-end bg-ink/40 p-3 sm:place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}>
-            <motion.div role="dialog" aria-modal="true" aria-label="Call and chat" onClick={(e) => e.stopPropagation()} className="pb-safe w-full max-w-md"
-              initial={{ y: 24, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 24, scale: 0.97 }} transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}>
-              <TalkChooser view={view} you={you} send={send} />
-              <button onClick={() => setOpen(false)} className="press mt-2 h-12 w-full rounded-2xl bg-white font-bold" style={{ boxShadow: 'var(--shadow-sm)' }}>Back to the game</button>
-            </motion.div>
-          </motion.div>
-        )}
+        {open && <CallSheet view={view} you={you} send={send} onClose={() => setOpen(false)} />}
       </AnimatePresence>
     </>
   );
@@ -182,7 +176,34 @@ function PipTip({ mode }: { mode: 'facetime' | 'whatsapp' }) {
     <div role="note" className="mt-3 flex items-start gap-2 rounded-2xl bg-ground p-3 text-sm font-semibold">
       <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" /></svg>
       <p className="min-w-0 flex-1">Once the {mode === 'facetime' ? 'FaceTime' : 'WhatsApp'} call starts, swipe up to go home. The video shrinks to a floating window and you can play here at the same time.</p>
-      <button onClick={close} className="press -m-1 h-9 shrink-0 rounded-xl px-3 font-extrabold hover:bg-white">Got it</button>
+      <button onClick={close} className="press -my-1.5 h-11 shrink-0 rounded-xl px-3 font-extrabold hover:bg-white">Got it</button>
     </div>
+  );
+}
+
+function SoundSwitch() {
+  const [on, setOn] = useState(soundOn);
+  const flip = () => { setSound(!on); setOn(!on); if (!on) nudge(); };
+  return (
+    <button role="switch" aria-checked={on} onClick={flip} className="press mt-2 flex h-12 w-full items-center justify-between rounded-2xl bg-white px-4 font-bold" style={{ boxShadow: 'var(--shadow-sm)' }}>
+      Sound on your turn
+      <span aria-hidden className={`relative h-7 w-12 rounded-full transition-colors ${on ? 'bg-ink' : 'bg-line'}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+      </span>
+    </button>
+  );
+}
+
+function CallSheet({ view, you, send, onClose }: { view: RoomView; you: string; send: (m: ClientMsg) => void; onClose: () => void }) {
+  const ref = useModal<HTMLDivElement>(onClose);
+  return (
+          <motion.div className="fixed inset-0 z-50 grid place-items-end bg-ink/40 p-3 sm:place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+            <motion.div ref={ref} role="dialog" aria-modal="true" aria-label="Call and chat" onClick={(e) => e.stopPropagation()} className="pb-safe w-full max-w-md"
+              initial={{ y: 24, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 24, scale: 0.97 }} transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}>
+              <TalkChooser view={view} you={you} send={send} />
+              <SoundSwitch />
+              <button onClick={onClose} className="press mt-2 h-12 w-full rounded-2xl bg-white font-bold" style={{ boxShadow: 'var(--shadow-sm)' }}>Back to the game</button>
+            </motion.div>
+          </motion.div>
   );
 }

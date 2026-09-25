@@ -1,5 +1,5 @@
 import { Logo } from './Logo';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { questionById } from '../game/questions';
@@ -13,6 +13,8 @@ import type { Answer, ClientMsg, RoomView } from '../game/room';
 import { hostLine } from '../game/host';
 import { CharacterWindow, CardFace } from './CharacterWindow';
 import { Collector, type CollectorMood } from './Collector';
+import { nudge } from '../lib/nudge';
+import { useModal } from '../lib/useModal';
 
 interface Props { view: RoomView; you: string; send: (m: ClientMsg) => void; onLeave: () => void; connected: boolean }
 
@@ -40,15 +42,15 @@ function TopBar({ view, you, onLeave, connected, send }: { view: RoomView; you: 
   const opp = view.players.find((p) => p.id !== you);
   return (
     <header className="flex min-w-0 items-center gap-2 px-4 sm:gap-3 pb-2 pt-3 sm:px-6 sm:pt-4">
-      <button onClick={onLeave} className="press shrink-0 text-[19px] sm:text-2xl" aria-label="Leave game and go home"><Logo size="sm" /></button>
-      <span className="rounded-full bg-white px-3 py-1 font-mono text-sm font-medium tracking-[0.2em]" style={{ boxShadow: 'var(--shadow-sm)' }} aria-label={`Game code ${view.code.split('').join(' ')}`}>
+      <button onClick={onLeave} className="press flex h-11 shrink-0 items-center text-[19px] sm:text-2xl" aria-label="Leave game and go home"><Logo size="sm" /></button>
+      <span className="flex h-11 items-center rounded-full bg-white px-3 font-mono text-sm font-medium tracking-[0.2em]" style={{ boxShadow: 'var(--shadow-sm)' }} aria-label={`Game code ${view.code.split('').join(' ')}`}>
         {view.code}
       </span>
       {!connected && <span className="rounded-full bg-signal px-2.5 py-1 text-xs font-bold text-white">Reconnecting…</span>}
       <div className="ml-auto flex items-center gap-2 text-sm font-bold">
         {opp && view.phase !== 'picking' && <TalkBar view={view} you={you} send={send} />}
         {me && opp && (
-          <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-1 sm:px-3" style={{ boxShadow: 'var(--shadow-sm)' }}>
+          <span className="flex h-11 items-center whitespace-nowrap rounded-full bg-white px-3" style={{ boxShadow: 'var(--shadow-sm)' }}>
             <span className="sr-only">Score: </span><span className="sr-only sm:not-sr-only">You </span> <span className="tabular-nums">{me.wins}</span>
             <span className="px-1.5 text-ink-2">–</span>
             <span className="tabular-nums">{opp.wins}</span> <span className="hidden max-w-[12ch] truncate align-bottom sm:inline-block">{opp.name}</span>
@@ -161,6 +163,8 @@ function Play({ view, you, send, line, mood, meName }: { view: RoomView; you: st
 
   useEffect(() => { if (!myTurn) setAccusing(false); }, [myTurn]);
   const turnLabel = view.phase !== 'playing' ? null : myTurn ? 'Your turn' : `${opp.name}'s turn`;
+  const wasMine = useRef(false);
+  useEffect(() => { if (myTurn && !wasMine.current) nudge(); wasMine.current = myTurn; }, [myTurn]);
   useEffect(() => {
     document.title = turnLabel ? `${turnLabel} · Unmasked` : 'Unmasked';
     return () => { document.title = 'Unmasked'; };
@@ -203,11 +207,8 @@ function Play({ view, you, send, line, mood, meName }: { view: RoomView; you: st
 
   return (
     <main className="flex flex-1 flex-col gap-3 px-3 pb-72 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6 lg:pb-8">
-      {turnLabel && (
-        <div role="status" className={`order-0 -mx-3 flex h-9 items-center justify-center gap-2 text-sm font-extrabold sm:mx-0 sm:rounded-2xl lg:hidden ${myTurn ? 'bg-butter text-ink' : 'bg-ground text-ink-2'}`}>
-          {myTurn && <span aria-hidden className="h-2 w-2 animate-pulse rounded-full bg-ink" />}{turnLabel}
-        </div>
-      )}
+      {turnLabel && <TurnBar label={turnLabel} mine={myTurn} className="order-0 -mx-3 sm:mx-0 sm:rounded-2xl lg:hidden" />}
+      <p role="status" className="sr-only">{announce(view, you, opp.name)}</p>
       <section aria-label="Your board" className="order-2 lg:order-1 lg:col-start-1 lg:row-start-1">
         <div className="mb-2 flex items-center justify-between px-1 text-sm font-bold">
           <span className="flex items-center gap-2">
@@ -229,6 +230,7 @@ function Play({ view, you, send, line, mood, meName }: { view: RoomView; you: st
       </section>
 
       <aside className="order-1 flex flex-col gap-3 lg:sticky lg:top-4 lg:order-2 lg:col-start-2 lg:row-start-1">
+        {turnLabel && <TurnBar label={turnLabel} mine={myTurn} className="hidden rounded-2xl lg:flex" />}
         <Collector line={line} mood={mood} compact />
         {secret && (
           <div className="hidden items-center gap-3 rounded-[20px] bg-white p-2.5 lg:flex" style={{ boxShadow: 'var(--shadow-sm)' }}>
@@ -264,6 +266,25 @@ function Play({ view, you, send, line, mood, meName }: { view: RoomView; you: st
       </AnimatePresence>
     </main>
   );
+}
+
+function TurnBar({ label, mine, className }: { label: string; mine: boolean; className: string }) {
+  return (
+    <div data-turn={mine ? 'mine' : 'theirs'} aria-hidden className={`flex h-9 items-center justify-center gap-2 text-sm font-extrabold ${mine ? 'bg-butter text-ink' : 'bg-ground text-ink-2'} ${className}`}>
+      {mine && <span className="h-2 w-2 animate-pulse rounded-full bg-ink" />}{label}
+    </div>
+  );
+}
+
+/** One line for screen readers that changes whenever the game moves on. */
+function announce(v: RoomView, you: string, oppName: string) {
+  if (v.phase !== 'playing') return '';
+  const last = v.log[v.log.length - 1];
+  const mine = v.turnOf === you;
+  if (v.stage === 'awaiting-answer' && last?.kind === 'question') return mine ? `You asked: ${last.text}. Waiting for ${oppName}.` : `${oppName} asks: ${last.text}. Answer yes, no or not sure.`;
+  if (v.stage === 'flip' && last?.kind === 'question' && last.answer) return `${mine ? oppName : 'You'} answered ${last.answer === 'unsure' ? 'not sure' : last.answer} to: ${last.text}. ${mine ? 'Flip down who is out, then end your turn.' : ''}`;
+  if (v.stage === 'flip' && last?.kind === 'aloud') return mine ? 'Flip down who is out, then end your turn.' : `${oppName} is flipping cards.`;
+  return mine ? 'Your turn. Ask a question or accuse someone.' : `${oppName}'s turn.`;
 }
 
 function Dock(props: {
@@ -358,7 +379,7 @@ function Dock(props: {
       <div>
         <p className="text-sm font-semibold text-ink-2">Ask {oppName} a yes/no question on the call.</p>
         <button onClick={() => send({ t: 'ask-aloud' })} className="press btn-butter mt-2 h-13 w-full rounded-2xl font-extrabold">Asked out loud · flip cards</button>
-        <button onClick={() => setInApp(true)} className="press mt-1 h-10 w-full rounded-xl text-sm font-bold text-ink-2 underline decoration-line underline-offset-4 hover:text-ink">Ask in the app instead</button>
+        <button onClick={() => setInApp(true)} className="press mt-1 h-11 w-full rounded-xl text-sm font-bold text-ink-2 underline decoration-line underline-offset-4 hover:text-ink">Ask in the app instead</button>
         <AccuseToggle accusing={accusing} setAccusing={setAccusing} />
         {accusing && <p className="mt-1.5 text-center text-xs font-semibold text-ink-2">Guessing uses your turn. Right, you win. Wrong, you lose.</p>}
       </div>
@@ -366,12 +387,12 @@ function Dock(props: {
   }
   return (
     <div>
-      {onCall && <button onClick={() => setInApp(false)} className="press mb-2 h-9 rounded-xl px-2 text-sm font-bold text-ink-2 hover:text-ink">‹ Back to asking out loud</button>}
+      {onCall && <button onClick={() => setInApp(false)} className="press mb-1 h-11 rounded-xl px-2 text-sm font-bold text-ink-2 hover:text-ink">‹ Back to asking out loud</button>}
       <div className="flex items-center gap-2">
         <div role="tablist" aria-label="Question type" className="flex flex-1 rounded-2xl bg-ground p-1">
           {(['chips', 'free'] as const).map((m) => (
             <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
-              className={`press h-10 flex-1 rounded-xl text-sm font-bold ${mode === m ? 'bg-white shadow-[var(--shadow-sm)]' : 'text-ink-2'}`}>
+              className={`press h-11 flex-1 rounded-xl text-sm font-bold ${mode === m ? 'bg-white shadow-[var(--shadow-sm)]' : 'text-ink-2'}`}>
               {m === 'chips' ? 'Quick question' : 'Ask anything'}
             </button>
           ))}
@@ -404,7 +425,7 @@ function Dock(props: {
 function AccuseToggle({ accusing, setAccusing }: { accusing: boolean; setAccusing: (b: boolean) => void }) {
   return (
     <button onClick={() => setAccusing(!accusing)} aria-pressed={accusing}
-      className={`press mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-extrabold ${accusing ? 'btn-signal' : 'border-2 border-signal/40 text-signal-deep hover:border-signal'}`}>
+      className={`press mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-extrabold ${accusing ? 'btn-signal' : 'border-2 border-signal/40 text-[#B42520] hover:border-signal'}`}>
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden><circle cx="12" cy="12" r="8" /><path d="M12 2v5M12 17v5M2 12h5M17 12h5" /></svg>
       {accusing ? 'Cancel accuse · tap a face on the board' : 'Accuse someone'}
     </button>
@@ -451,9 +472,10 @@ function Log({ view, you }: { view: RoomView; you: string }) {
 
 function ConfirmAccuse({ id, packId, oppName, onCancel, onConfirm }: { id: string; packId: string; oppName: string; onCancel: () => void; onConfirm: () => void }) {
   const c = cardOf(packId, id);
+  const ref = useModal<HTMLDivElement>(onCancel);
   return (
     <motion.div className="fixed inset-0 z-50 grid place-items-end bg-ink/40 p-3 backdrop-blur-[2px] sm:place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel}>
-      <motion.div role="dialog" aria-modal="true" aria-labelledby="acc-title" onClick={(e) => e.stopPropagation()}
+      <motion.div ref={ref} role="dialog" aria-modal="true" aria-labelledby="acc-title" onClick={(e) => e.stopPropagation()}
         initial={{ y: 24, scale: 0.96 }} animate={{ y: 0, scale: 1 }} exit={{ y: 24, scale: 0.96 }} transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
         className="pb-safe w-full max-w-sm rounded-[28px] bg-white p-5" style={{ boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-center gap-4">
@@ -497,13 +519,14 @@ function Result({ view, you, send }: { view: RoomView; you: string; send: (m: Cl
 
 /** The clip moment: the accused card, huge, with the verdict stamped on it. */
 function Reveal({ view, you, onClose }: { view: RoomView; you: string; onClose: () => void }) {
+  const ref = useModal<HTMLDivElement>(onClose);
   const acc = [...view.log].reverse().find((l) => l.kind === 'accuse');
   if (!acc || acc.kind !== 'accuse') return null;
   const c = cardOf(view.pack, acc.targetId);
   const accuser = acc.by === you ? 'You' : view.players.find((p) => p.id === acc.by)?.name ?? '';
   const word = acc.correct ? 'Unmasked' : 'Wrong';
   return (
-    <motion.div className="fixed inset-0 z-[60] grid place-items-center bg-ink/80 p-6 backdrop-blur-sm" onClick={onClose}
+    <motion.div ref={ref} tabIndex={-1} className="fixed inset-0 z-[60] grid place-items-center bg-ink/80 p-6 backdrop-blur-sm outline-none" onClick={onClose}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} role="dialog" aria-modal="true" aria-label={`${accuser} accused ${c.name}: ${acc.correct ? 'correct' : 'wrong'}`}>
       <div className="flex flex-col items-center text-center">
         <p className="font-mono text-sm uppercase tracking-[0.2em] text-phosphor">{accuser} accused</p>

@@ -41,7 +41,7 @@ await shot(M, '04-pick-mobile');
 await A.evaluate(()=>document.querySelector('button[aria-label="Hide as KSI"]').click()); await wait(200); await clickText(A, 'Hide as KSI');
 await M.evaluate(()=>document.querySelector('button[aria-label="Hide as Chunkz"]').click()); await wait(300); await shot(M, '05-pick-selected-mobile'); await clickText(M, 'Hide as Chunkz');
 await wait(1500);
-const aTurn = await A.evaluate(() => [...document.querySelectorAll('[role=status]')].some((e) => e.textContent.trim() === 'Your turn'));
+const aTurn = await A.evaluate(() => !!document.querySelector('[data-turn=mine]'));
 const asker = aTurn ? A : M, other = aTurn ? M : A;
 console.log('first turn', aTurn ? 'A' : 'M');
 await shot(A, '06-play-desktop'); await shot(M, '07-play-mobile');
