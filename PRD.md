@@ -1,7 +1,7 @@
 # Unmasked - Product Requirements Document
 
 **Owner:** Abdullah Mansuri (7 day challenge)
-**Status:** Live preview (build 3). Function-first phase; branding pass is LAST.
+**Status:** Live preview (build 5). Function-first phase; branding pass is LAST.
 **Preview:** https://unmasked-m4v8p1.abdullah-26nasir.workers.dev (unguessable, noindexed, unlisted)
 **Repo:** github.com/abdullah26nasir-hash/unmasked, branch `v2-creators` (main untouched)
 **Last updated:** 24 Sep 2026
@@ -42,11 +42,18 @@ Product principles:
 - [x] 42/42 button test + 10/10 security checks, verified on the live URL
 - [x] Pen test passed; noindex, unguessable preview URL
 
-### Phase 2 - In progress: YouTuber Edition
-- [ ] 21 verified cast + Darkest Man + Max Khadar (Kai Cenat as Eric placeholder)
-- [ ] Episode-authentic chips (incl. "is it a woman?" - faithful to the show)
-- [ ] Portrait set in the established clean style
-- [ ] Board screenshot from owner to resolve Eric slot
+### Phase 2 - Shipped: YouTuber Edition (build 4)
+- [x] Full 24-face YouTuber board in thumbnail-sticker style (all batches, AJ on a real photo)
+- [x] Niko's question chips (Sidemen?, Beta Squad?, Lives in the UK?, American?, A woman?, Twitch account?, Boxing match?, Charity match?)
+- [x] 360px layout fixes; 42/42 buttons, 10/10 security verified live
+- [ ] Board screenshot from owner to resolve Eric slot (Kai Cenat placeholder stands)
+
+### Phase 2b - Shipped: call vs texting play (build 5)
+- [x] Call modes (FaceTime/WhatsApp/Meet): "Asked out loud - flip cards" primary turn action; chips/typed questions secondary ("Ask in the app instead"); friend sees the asking state; log records it
+- [x] Texting mode unchanged: full in-app Q&A; mid-game mode switch swaps the flow
+- [x] Turn signals: "Your turn" bar + tab title "Your turn · Unmasked"; one-time FaceTime PiP swipe tip
+- [x] Server: ask-aloud move, valid only on your turn, logged once, no accuse after asking (classic rule)
+- [x] 52/52 buttons, 13/13 security, full e2e verified live
 
 ### Phase 3 - Pack pipeline
 - [ ] Additional packs from episode research (proposal-first process)
