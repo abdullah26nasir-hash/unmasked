@@ -19,7 +19,7 @@ export function Credits() {
               <h2 className="font-display text-2xl font-extrabold tracking-[-0.03em]">Photo credits</h2>
               <button onClick={() => setOpen(false)} className="press h-9 rounded-full bg-ground px-3 text-sm font-bold">Close</button>
             </div>
-            <p className="mt-1 text-sm font-medium text-ink-2">Unofficial fan game. Not made with or endorsed by these creators.</p>
+            <p className="mt-1 text-sm font-medium text-ink-2">Unofficial fan game. Not made with or endorsed by anyone pictured. Football Edition portraits are AI-generated illustrations. YouTuber Edition portraits are AI-restyled from these source photos:</p>
             <ul className="mt-3 divide-y divide-line text-sm">
               {cards.map((c) => {
                 const k = c.id; const cr = list[k];

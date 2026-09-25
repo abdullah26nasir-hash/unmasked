@@ -18,6 +18,9 @@ export function hostLine(v: RoomView, you: string): string {
       'Two players. One of you is about to get exposed. Share the code.',
     ], seed);
   }
+  if ((v.phase === 'picking' || v.phase === 'playing') && opp && !opp.connected) {
+    return pick([`${oppName} dropped out. I'm holding their seat. Same link gets them back in.`, `${oppName}'s connection blinked. Seat's saved. Give them a minute.`], seed);
+  }
   if (v.phase === 'picking') {
     if (me?.hasPicked && !opp?.hasPicked) return pick([`Locked in. ${oppName} is still choosing a disguise.`, `Good. Now we wait for ${oppName} to commit.`], seed);
     if (!me?.hasPicked && opp?.hasPicked) return pick([`${oppName} has picked. Your move. No pressure. Some pressure.`, `${oppName} is hidden. Choose who you're protecting.`], seed);
@@ -44,6 +47,11 @@ export function hostLine(v: RoomView, you: string): string {
       ? pick([`Waiting for ${oppName} to answer. Honestly, hopefully.`, `${oppName} is thinking. Or pretending to.`], seed)
       : pick(['Answer truthfully. I will know. (I won\'t, but still.)', 'A question for you. Look at your card before you answer.'], seed);
   }
+  if (v.stage === 'flip' && last?.kind === 'aloud') {
+    return myTurn
+      ? pick(['Heard it? Flip down everyone it rules out.', 'Clear the board, then pass it over.'], seed)
+      : pick([`${oppName} is flipping cards. Watch the counter.`, `${oppName} is clearing their board.`], seed);
+  }
   if (v.stage === 'flip' && last?.kind === 'question') {
     if (myTurn) {
       return last.answer === 'yes'
@@ -57,8 +65,10 @@ export function hostLine(v: RoomView, you: string): string {
   const oppLeft = opp?.remaining ?? 24;
   if (myTurn) {
     if (oppLeft <= 3) return pick([`${oppName} is down to ${oppLeft}. Maybe accuse before they do.`, `${oppLeft} left on their board. Tick tock.`], seed);
+    if (v.talk.mode && v.talk.mode !== 'text') return pick(['Your turn. Ask out loud, then tap the button.', 'Say your question on the call. I\'ll wait.'], seed);
     if (v.turn <= 2) return pick(['You\'re up. Ask one question.', 'Your turn. Start broad, get narrow.'], seed);
     return pick(['Your turn. One question. Make it count.', 'Ask something clever. Or tap a chip, no judgement.', 'Your move. The board is waiting.'], seed);
   }
+  if (v.stage === 'ask' && v.talk.mode && v.talk.mode !== 'text') return pick([`${oppName} is asking out loud. Answer honestly.`, `Listen up. ${oppName} has a question for you.`], seed);
   return pick([`${oppName}'s turn. Keep your face neutral.`, `${oppName} is choosing a question.`, `Hold tight. ${oppName} is up.`], seed);
 }

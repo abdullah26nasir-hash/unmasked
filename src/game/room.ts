@@ -1,7 +1,7 @@
 // Pure, server-authoritative room rules. The server runs `reduce`; clients only
 // ever receive `viewFor(state, playerId)`, which hides the opponent's secret and
 // which cards they've flipped until the round ends.
-import { packOf, type Pack } from './packs';
+import { PACK_IDS, packOf, type Pack } from './packs';
 
 export type Phase = 'lobby' | 'picking' | 'playing' | 'over';
 export type Stage = 'ask' | 'awaiting-answer' | 'flip';
@@ -23,6 +23,7 @@ export interface Player {
 
 export type LogEntry =
   | { kind: 'question'; by: string; text: string; questionId?: string; answer?: Answer; turn: number }
+  | { kind: 'aloud'; by: string; turn: number }
   | { kind: 'accuse'; by: string; targetId: string; correct: boolean; turn: number };
 
 export interface RoomState {
@@ -47,6 +48,7 @@ export type ClientMsg =
   | { t: 'pick'; charId: string }
   | { t: 'ask'; questionId: string }
   | { t: 'ask-free'; text: string }
+  | { t: 'ask-aloud' }
   | { t: 'answer'; answer: Answer }
   | { t: 'flip'; charIds: string[]; down: boolean }
   | { t: 'end-turn' }
@@ -162,6 +164,13 @@ export function reduce(s0: RoomState, key: string, msg: ClientMsg): ReduceResult
       }
       return { state: s };
     }
+    case 'ask-aloud': {
+      // On a call the question and answer happen out loud; we only record that it happened.
+      if (s.phase !== 'playing' || s.turnOf !== playerId || s.stage !== 'ask' || !opp?.secretId) return bad('Not your turn to ask.');
+      s.log.push({ kind: 'aloud', by: playerId, turn: s.turn });
+      s.stage = 'flip';
+      return { state: s };
+    }
     case 'answer': {
       const last = s.log[s.log.length - 1];
       if (s.phase !== 'playing' || s.stage !== 'awaiting-answer' || s.turnOf === playerId || last?.kind !== 'question') {
@@ -187,7 +196,8 @@ export function reduce(s0: RoomState, key: string, msg: ClientMsg): ReduceResult
       return { state: s };
     }
     case 'accuse': {
-      if (s.phase !== 'playing' || s.turnOf !== playerId || s.stage === 'awaiting-answer' || !opp?.secretId) return bad('Accuse on your turn.');
+      // Classic rule: a guess replaces your question for the turn, and a wrong guess loses.
+      if (s.phase !== 'playing' || s.turnOf !== playerId || s.stage !== 'ask' || !opp?.secretId) return bad('Accuse at the start of your turn, instead of asking.');
       if (!CAST_IDS.has(msg.charId)) return bad('Unknown character.');
       const correct = msg.charId === opp.secretId;
       s.log.push({ kind: 'accuse', by: playerId, targetId: msg.charId, correct, turn: s.turn });
@@ -199,7 +209,7 @@ export function reduce(s0: RoomState, key: string, msg: ClientMsg): ReduceResult
     }
     case 'set-pack': {
       if (s.phase !== 'lobby' && s.phase !== 'picking' && s.phase !== 'over') return bad('Change the cast between rounds.');
-      if (!(msg.pack in { creators: 1, originals: 1 })) return bad('Unknown cast.');
+      if (!(PACK_IDS as readonly string[]).includes(msg.pack)) return bad('Unknown cast.');
       if (s.pack !== msg.pack) {
         s.pack = msg.pack;
         s.players.forEach((x) => { x.secretId = null; x.flipped = []; });
@@ -259,8 +269,8 @@ export function parseClientMsg(v: unknown): ClientMsg | null {
     case 'ask-free': return str(m.text, 500) ? m as ClientMsg : null;
     case 'answer': return m.answer === 'yes' || m.answer === 'no' || m.answer === 'unsure' ? m as ClientMsg : null;
     case 'flip': return Array.isArray(m.charIds) && m.charIds.length <= 24 && m.charIds.every((x) => str(x, 40)) && typeof m.down === 'boolean' ? m as ClientMsg : null;
-    case 'end-turn': case 'rematch': return m as ClientMsg;
-    case 'set-pack': return m.pack === 'creators' || m.pack === 'originals' ? m as ClientMsg : null;
+    case 'end-turn': case 'rematch': case 'ask-aloud': return m as ClientMsg;
+    case 'set-pack': return typeof m.pack === 'string' && (PACK_IDS as readonly string[]).includes(m.pack) ? m as ClientMsg : null;
     case 'set-talk': return str(m.mode, 16) ? m as ClientMsg : null;
     case 'set-number': return str(m.number, 40) ? m as ClientMsg : null;
     case 'set-meet': return str(m.url, 200) ? m as ClientMsg : null;

@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer-core';
-const B = 'http://127.0.0.1:5173';
+const B = process.env.BASE || 'http://127.0.0.1:8787';
 const br = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox','--disable-dev-shm-usage','--disable-gpu'] });
 const mk = async (w, h, mobile) => {
   const ctx = await br.createBrowserContext();
@@ -16,7 +16,9 @@ const clickText = async (p, t) => {
   if (!ok) console.log('NO BUTTON', t);
 };
 const A = await mk(1280, 860, false);
-const M = await mk(390, 844, true);
+const [MW, MH] = (process.env.MSIZE || '390x844').split('x').map(Number);
+const M = await mk(MW, MH, true);
+if (process.env.MUA) await M.setUserAgent(process.env.MUA);
 await A.goto(B, { waitUntil: 'domcontentloaded' });
 await wait(2500);
 await shot(A, '01-home-desktop');
@@ -39,16 +41,18 @@ await shot(M, '04-pick-mobile');
 await A.evaluate(()=>document.querySelector('button[aria-label="Hide as KSI"]').click()); await wait(200); await clickText(A, 'Hide as KSI');
 await M.evaluate(()=>document.querySelector('button[aria-label="Hide as Chunkz"]').click()); await wait(300); await shot(M, '05-pick-selected-mobile'); await clickText(M, 'Hide as Chunkz');
 await wait(1500);
-const aTurn = await A.evaluate(() => !!document.querySelector('[role=tablist]'));
+const aTurn = await A.evaluate(() => [...document.querySelectorAll('[role=status]')].some((e) => e.textContent.trim() === 'Your turn'));
 const asker = aTurn ? A : M, other = aTurn ? M : A;
 console.log('first turn', aTurn ? 'A' : 'M');
 await shot(A, '06-play-desktop'); await shot(M, '07-play-mobile');
 await M.evaluate(()=>document.querySelector('button[aria-label="Choose how to talk"]')?.click()); await wait(700); await shot(M,'06b-talk-mobile');
 await clickText(M,'WhatsApp call'); await wait(700); await shot(M,'06c-talk-whatsapp'); await M.keyboard.press('Escape'); await M.evaluate(()=>document.querySelector('[role=dialog]')?.parentElement?.click()); await wait(500);
-await clickText(asker, 'British?');
+await wait(600); await shot(asker,'07b-call-ask'); await shot(other,'07c-call-friend');
+await M.evaluate(()=>document.querySelector('button[aria-label^="Talking by"]')?.click()); await wait(700); await clickText(M,'Text here'); await wait(600); await M.keyboard.press('Escape'); await M.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Back to the game')?.click()); await wait(500);
+await clickText(asker, 'Lives in the UK?');
 await wait(1000); await shot(other,'08a-answer-chip'); await clickText(other,'Yes'); await wait(1000);
 await shot(asker, '08-answer-' + (aTurn ? 'desktop' : 'mobile'));
-for (const n of ['MrBeast','MKBHD','Logan Paul','IShowSpeed','Kai Cenat','PewDiePie','Dream','Pokimane','Valkyrae','Mark Rober','MoistCr1TiKaL','Dude Perfect','Casey Neistat']) { await asker.evaluate((n)=>document.querySelector(`button[aria-label="Flip down ${n}"]`)?.click(), n); await wait(60); }
+for (const n of ['MrBeast','Jake Paul','Logan Paul','Speed','Kai Cenat','Deji','Angry Ginge','Pokimane','Valkyrae','Ryan Trahan','JiDion','Darkest Man','Max Khadar']) { await asker.evaluate((n)=>document.querySelector(`button[aria-label="Flip down ${n}"]`)?.click(), n); await wait(60); }
 await wait(2000);
 await shot(asker, '09-flipped-' + (aTurn ? 'desktop' : 'mobile'));
 await shot(other, '10-other-view');

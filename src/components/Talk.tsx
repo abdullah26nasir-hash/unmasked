@@ -42,6 +42,7 @@ export function TalkChooser({ view, you, send }: { view: RoomView; you: string; 
         })}
       </div>
       {mode && <TalkDetails view={view} you={you} send={send} oppName={oppName} />}
+      {(mode === 'facetime' || mode === 'whatsapp') && <PipTip mode={mode} />}
     </div>
   );
 }
@@ -168,5 +169,20 @@ export function TalkBar({ view, you, send }: { view: RoomView; you: string; send
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+const PIP_KEY = 'unmasked:pip-tip';
+/** One-time tip: keep the call floating so the board stays usable. */
+function PipTip({ mode }: { mode: 'facetime' | 'whatsapp' }) {
+  const [show, setShow] = useState(() => { try { return !localStorage.getItem(PIP_KEY); } catch { return false; } });
+  if (!show) return null;
+  const close = () => { try { localStorage.setItem(PIP_KEY, '1'); } catch { /* private mode */ } setShow(false); };
+  return (
+    <div role="note" className="mt-3 flex items-start gap-2 rounded-2xl bg-ground p-3 text-sm font-semibold">
+      <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" /></svg>
+      <p className="min-w-0 flex-1">Once the {mode === 'facetime' ? 'FaceTime' : 'WhatsApp'} call starts, swipe up to go home. The video shrinks to a floating window and you can play here at the same time.</p>
+      <button onClick={close} className="press -m-1 h-9 shrink-0 rounded-xl px-3 font-extrabold hover:bg-white">Got it</button>
+    </div>
   );
 }

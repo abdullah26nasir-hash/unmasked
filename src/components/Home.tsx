@@ -1,13 +1,14 @@
+import { Mark } from './Logo';
 import { Credits } from './Credits';
 import { sessionName } from '../game/session';
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { CAST } from '../game/characters';
+import { cardOf } from '../game/packs';
+import { Landing } from './Landing';
 import { isCode, makeCode } from '../game/room';
-import { Portrait } from './Portrait';
 import { Collector } from './Collector';
 
-const FAN = ['juno', 'big-mo', 'rex', 'zara', 'bo'].map((id) => CAST.find((c) => c.id === id)!);
+const FAN = ['ksi', 'mrbeast', 'pokimane', 'ishowspeed', 'chunkz'].map((id) => cardOf('creators', id));
 
 export function Home({ initialCode, onEnter }: { initialCode: string; onEnter: (code: string, name: string, create: boolean) => void }) {
   const [name, setName] = useState(() => localStorage.getItem('unmasked:name') ?? '');
@@ -25,13 +26,14 @@ export function Home({ initialCode, onEnter }: { initialCode: string; onEnter: (
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-5 pb-10 pt-6 sm:px-8 lg:flex-row lg:items-center lg:gap-16">
+    <>
+    <main id="top" className="mx-auto flex min-h-dvh max-w-5xl flex-col px-5 pb-10 pt-6 sm:px-8 lg:flex-row lg:items-center lg:gap-16">
       <section className="lg:flex-1">
-        <h1 className="font-display text-[clamp(56px,13vw,112px)] font-extrabold leading-[0.85] tracking-[-0.045em]">
-          Unmasked
+        <h1 aria-label="Unmasked" className="flex items-center gap-[0.14em] font-display text-[clamp(52px,12.5vw,108px)] font-extrabold lowercase leading-[0.85] tracking-[-0.05em]">
+          <Mark className="h-[0.74em] w-auto shrink-0" /><span>unmasked</span>
         </h1>
         <p className="mt-4 max-w-md text-lg font-medium text-ink-2 sm:text-xl">
-          Guess who your friend is hiding before they guess yours. Two phones, one game code.
+          You know every face. Can you read your friend's? Two phones, one code, no sign-up.
         </p>
 
         {/* The thesis: the board itself, windows mid-flip */}
@@ -45,7 +47,7 @@ export function Home({ initialCode, onEnter }: { initialCode: string; onEnter: (
                 animate={{ rotateX: i === 1 || i === 3 ? [0, 0, -82, -82, 0] : 0 }}
                 transition={{ duration: 4.5, times: [0, 0.3, 0.38, 0.85, 0.93], repeat: Infinity, delay: i * 0.25 }}
               >
-                <Portrait c={c} className="h-full w-full" />
+                <img src={c.img} alt="" className="h-full w-full object-cover" />
               </motion.div>
             </div>
           ))}
@@ -93,5 +95,7 @@ export function Home({ initialCode, onEnter }: { initialCode: string; onEnter: (
         <div className="mt-6 text-center"><Credits /></div>
       </section>
     </main>
+    {!joining && <Landing />}
+    </>
   );
 }

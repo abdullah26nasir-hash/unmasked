@@ -1,3 +1,4 @@
+import { Logo } from './Logo';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -6,6 +7,7 @@ import { CAST } from '../game/characters';
 import { packOf, cardOf, PACKS } from '../game/packs';
 import { TalkBar, TalkChooser } from './Talk';
 import { QR } from './QR';
+import { copyText, shareOrCopy } from '../lib/share';
 import { sessionName } from '../game/session';
 import type { Answer, ClientMsg, RoomView } from '../game/room';
 import { hostLine } from '../game/host';
@@ -38,7 +40,7 @@ function TopBar({ view, you, onLeave, connected, send }: { view: RoomView; you: 
   const opp = view.players.find((p) => p.id !== you);
   return (
     <header className="flex min-w-0 items-center gap-2 px-4 sm:gap-3 pb-2 pt-3 sm:px-6 sm:pt-4">
-      <button onClick={onLeave} className="press shrink-0 font-display text-xl font-extrabold tracking-[-0.04em] sm:text-2xl" aria-label="Leave game and go home">Unmasked</button>
+      <button onClick={onLeave} className="press shrink-0 text-[19px] sm:text-2xl" aria-label="Leave game and go home"><Logo size="sm" /></button>
       <span className="rounded-full bg-white px-3 py-1 font-mono text-sm font-medium tracking-[0.2em]" style={{ boxShadow: 'var(--shadow-sm)' }} aria-label={`Game code ${view.code.split('').join(' ')}`}>
         {view.code}
       </span>
@@ -59,14 +61,17 @@ function TopBar({ view, you, onLeave, connected, send }: { view: RoomView; you: 
 }
 
 function Lobby({ code, line, view, send }: { code: string; line: string; view: RoomView; send: (m: ClientMsg) => void }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'' | 'copied' | 'failed'>('');
   const [showQr, setShowQr] = useState(false);
+  const [waitedLong, setWaitedLong] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setWaitedLong(true), 90_000); return () => clearTimeout(id); }, []);
   const link = `${window.location.origin}/?join=${code}`;
   const title = sessionName(code);
-  const copy = async () => { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); };
+  const flash = (r: 'copied' | 'failed') => { setCopied(r); setTimeout(() => setCopied(''), 2200); };
+  const copy = async () => flash((await copyText(link)) ? 'copied' : 'failed');
   const share = async () => {
-    if (navigator.share) { try { await navigator.share({ title: `Unmasked: ${title}`, text: `Join me in ${title} on Unmasked. Code ${code}`, url: link }); return; } catch { /* fall through */ } }
-    await copy();
+    const r = await shareOrCopy({ title: `Unmasked: ${title}`, text: `Join me in ${title} on Unmasked. Code ${code}`, url: link });
+    if (r === 'copied' || r === 'failed') flash(r);
   };
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 pb-12">
@@ -76,12 +81,15 @@ function Lobby({ code, line, view, send }: { code: string; line: string; view: R
         <p className="mt-4 font-mono text-[56px] font-medium leading-none tracking-[0.18em]" aria-label={`Game code ${code.split('').join(' ')}`}>{code}</p>
         <p className="mt-2 text-sm font-semibold text-ink-2">Say the code, send the link, or let them scan.</p>
         <button onClick={share} className="press btn-butter mt-5 h-13 w-full rounded-2xl font-extrabold">
-          {copied ? 'Link copied' : 'Send invite link'}
+          {copied === 'copied' ? 'Link copied' : 'Send invite link'}
         </button>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <button onClick={copy} className="press h-12 rounded-2xl bg-ground font-bold">{copied ? 'Copied' : 'Copy link'}</button>
+          <button onClick={copy} className="press h-12 rounded-2xl bg-ground font-bold">{copied === 'copied' ? 'Copied' : 'Copy link'}</button>
           <button onClick={() => setShowQr((v) => !v)} aria-expanded={showQr} className="press h-12 rounded-2xl bg-ground font-bold">{showQr ? 'Hide QR' : 'Show QR'}</button>
         </div>
+        {copied === 'failed' && (
+          <p className="mt-3 break-all rounded-2xl bg-ground p-3 text-left font-mono text-xs" role="status">Couldn't copy automatically. Press and hold to copy: {link}</p>
+        )}
         {showQr && (
           <div className="mt-4 flex flex-col items-center gap-2">
             <QR value={link} label={`QR code to join ${title}`} size={184} />
@@ -92,6 +100,7 @@ function Lobby({ code, line, view, send }: { code: string; line: string; view: R
           <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tray opacity-60" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-tray" /></span>
           Waiting for them to join
         </p>
+        {waitedLong && <p className="mt-1 text-xs font-semibold text-ink-2">Still nobody? Send the link again. It stays open for 6 hours.</p>}
       </div>
       <div className="mt-4"><PackPicker view={view} send={send} /></div>
       <div className="mt-4"><Collector line={line} mood="smug" compact /></div>
@@ -151,6 +160,11 @@ function Play({ view, you, send, line, mood, meName }: { view: RoomView; you: st
   const lastQ = last?.kind === 'question' ? last : null;
 
   useEffect(() => { if (!myTurn) setAccusing(false); }, [myTurn]);
+  const turnLabel = view.phase !== 'playing' ? null : myTurn ? 'Your turn' : `${opp.name}'s turn`;
+  useEffect(() => {
+    document.title = turnLabel ? `${turnLabel} · Unmasked` : 'Unmasked';
+    return () => { document.title = 'Unmasked'; };
+  }, [turnLabel]);
   const [revealOpen, setRevealOpen] = useState(false);
   useEffect(() => {
     if (view.phase !== 'over') return;
@@ -189,6 +203,11 @@ function Play({ view, you, send, line, mood, meName }: { view: RoomView; you: st
 
   return (
     <main className="flex flex-1 flex-col gap-3 px-3 pb-72 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6 lg:pb-8">
+      {turnLabel && (
+        <div role="status" className={`order-0 -mx-3 flex h-9 items-center justify-center gap-2 text-sm font-extrabold sm:mx-0 sm:rounded-2xl lg:hidden ${myTurn ? 'bg-butter text-ink' : 'bg-ground text-ink-2'}`}>
+          {myTurn && <span aria-hidden className="h-2 w-2 animate-pulse rounded-full bg-ink" />}{turnLabel}
+        </div>
+      )}
       <section aria-label="Your board" className="order-2 lg:order-1 lg:col-start-1 lg:row-start-1">
         <div className="mb-2 flex items-center justify-between px-1 text-sm font-bold">
           <span className="flex items-center gap-2">
@@ -255,6 +274,9 @@ function Dock(props: {
   const myTurn = view.turnOf === you;
   const last = view.log[view.log.length - 1];
   const lastQ = last?.kind === 'question' ? last : null;
+  const onCall = view.talk.mode === 'facetime' || view.talk.mode === 'whatsapp' || view.talk.mode === 'meet';
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => setInApp(false), [view.turn]);
   const [mode, setMode] = useState<'chips' | 'free'>('chips');
   const [text, setText] = useState('');
   const asked = useMemo(() => new Set(view.log.filter((l) => l.kind === 'question' && l.by === you && l.questionId).map((l) => (l as { questionId: string }).questionId)), [view.log, you]);
@@ -286,7 +308,9 @@ function Dock(props: {
         <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tray opacity-60" /><span className="relative inline-flex h-3 w-3 rounded-full bg-tray" /></span>
         <div className="min-w-0 flex-1">
           <div className="font-bold">{oppName}'s turn</div>
-          {lastQ && lastQ.by !== you && lastQ.answer ? <AnswerLine text={lastQ.text} answer={lastQ.answer} who={oppName} /> : <div className="text-sm text-ink-2">You can still flip your own cards.</div>}
+          {view.stage === 'ask' && onCall ? <div className="text-sm font-semibold text-ink-2">{oppName} is asking out loud. Answer on the call.</div>
+            : last?.kind === 'aloud' && last.by !== you ? <div className="text-sm text-ink-2">{oppName} asked out loud and is flipping.</div>
+            : lastQ && lastQ.by !== you && lastQ.answer ? <AnswerLine text={lastQ.text} answer={lastQ.answer} who={oppName} /> : <div className="text-sm text-ink-2">You can still flip your own cards.</div>}
         </div>
       </div>
     );
@@ -298,6 +322,16 @@ function Dock(props: {
         <div className="text-xs font-bold uppercase tracking-wider text-ink-2">You asked</div>
         <p className="font-display text-xl font-extrabold leading-tight">"{lastQ?.text}"</p>
         <p className="mt-1 text-sm font-semibold text-ink-2">Waiting for {oppName} to answer…</p>
+      </div>
+    );
+  }
+
+  if (view.stage === 'flip' && last?.kind === 'aloud') {
+    return (
+      <div>
+        <p className="font-display text-xl font-extrabold leading-tight tracking-[-0.02em]">Flip down who's out</p>
+        <p className="mt-0.5 text-sm font-semibold text-ink-2">Tap faces the answer rules out, then pass it to {oppName}.</p>
+        <button onClick={() => send({ t: 'end-turn' })} className="press btn-butter mt-3 h-13 w-full rounded-2xl font-extrabold">End turn</button>
       </div>
     );
   }
@@ -314,14 +348,25 @@ function Dock(props: {
           )}
           <button onClick={() => send({ t: 'end-turn' })} className="press btn-butter h-13 flex-1 rounded-2xl font-extrabold">End turn</button>
         </div>
-        <AccuseToggle accusing={accusing} setAccusing={setAccusing} />
       </div>
     );
   }
 
-  // Ask stage
+  // Ask stage. On a call the question is spoken, so one tap moves you to flipping.
+  if (onCall && !inApp) {
+    return (
+      <div>
+        <p className="text-sm font-semibold text-ink-2">Ask {oppName} a yes/no question on the call.</p>
+        <button onClick={() => send({ t: 'ask-aloud' })} className="press btn-butter mt-2 h-13 w-full rounded-2xl font-extrabold">Asked out loud · flip cards</button>
+        <button onClick={() => setInApp(true)} className="press mt-1 h-10 w-full rounded-xl text-sm font-bold text-ink-2 underline decoration-line underline-offset-4 hover:text-ink">Ask in the app instead</button>
+        <AccuseToggle accusing={accusing} setAccusing={setAccusing} />
+        {accusing && <p className="mt-1.5 text-center text-xs font-semibold text-ink-2">Guessing uses your turn. Right, you win. Wrong, you lose.</p>}
+      </div>
+    );
+  }
   return (
     <div>
+      {onCall && <button onClick={() => setInApp(false)} className="press mb-2 h-9 rounded-xl px-2 text-sm font-bold text-ink-2 hover:text-ink">‹ Back to asking out loud</button>}
       <div className="flex items-center gap-2">
         <div role="tablist" aria-label="Question type" className="flex flex-1 rounded-2xl bg-ground p-1">
           {(['chips', 'free'] as const).map((m) => (
@@ -351,6 +396,7 @@ function Dock(props: {
         </form>
       )}
       <AccuseToggle accusing={accusing} setAccusing={setAccusing} />
+      {accusing && <p className="mt-1.5 text-center text-xs font-semibold text-ink-2">Guessing uses your turn. Right, you win. Wrong, you lose.</p>}
     </div>
   );
 }
@@ -394,6 +440,7 @@ function Log({ view, you }: { view: RoomView; you: string }) {
             <span className="w-12 shrink-0 font-bold">{name(l.by)}</span>
             {l.kind === 'question'
               ? <><span className="min-w-0 flex-1 truncate">{l.text}</span><span className="font-extrabold">{l.answer === 'yes' ? 'Yes' : l.answer === 'no' ? 'No' : l.answer ? '?' : '…'}</span></>
+              : l.kind === 'aloud' ? <span className="flex-1 text-ink-2">asked out loud</span>
               : <span className="flex-1">accused {cardOf(view.pack, l.targetId).name} · {l.correct ? 'right' : 'wrong'}</span>}
           </li>
         ))}
